@@ -20,10 +20,6 @@
 #define UNISTD_OPEN_OPTIONS O_RDONLY
 #endif
 
-#if defined _WIN32 || defined _AIX
-#define lseek lseek64
-#endif
-
 
 int rdata_unistd_open_handler(const char *path, void *io_ctx) {
     int fd = open(path, UNISTD_OPEN_OPTIONS);

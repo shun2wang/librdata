@@ -65,6 +65,17 @@ if(WITH_LZMA)
   endif()
 endif()
 
+# libiconv
+if(MSVC)
+  find_package(Iconv QUIET)
+  if(Iconv_FOUND)
+    target_compile_definitions(rdata PRIVATE HAVE_Iconv=1)
+    target_link_libraries(rdata PUBLIC Iconv::Iconv)
+  else()
+    message(STATUS "libiconv not found, it's required on Windows build")
+  endif()
+endif()
+
 # Installation
 install(TARGETS rdata
   EXPORT librdataTargets

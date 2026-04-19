@@ -7,6 +7,8 @@ option(WITH_ZLIB "Enable zlib compression support" ON)
 option(WITH_BZIP2 "Enable bzip2 compression support" ON)
 option(WITH_LZMA "Enable lzma/xz compression support" ON)
 
+set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
+
 file(GLOB RDATA_HEADERS "${CMAKE_CURRENT_SOURCE_DIR}/src/*.h")
 file(GLOB RDATA_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/*.c")
 

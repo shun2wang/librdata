@@ -81,10 +81,4 @@ install(TARGETS rdata
   RUNTIME DESTINATION bin
 )
 install(DIRECTORY src/ DESTINATION include FILES_MATCHING PATTERN "*.h")
-
-include(CMakePackageConfigHelpers)
-write_basic_package_version_file(
-  "${CMAKE_CURRENT_BINARY_DIR}/librdataConfigVersion.cmake"
-  VERSION 1.0.0 COMPATIBILITY AnyNewerVersion
-)
 install(EXPORT librdataTargets DESTINATION lib/cmake/librdata NAMESPACE librdata::)

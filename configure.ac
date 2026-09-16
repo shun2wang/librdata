@@ -4,10 +4,15 @@ AM_SILENT_RULES([yes])
 
 AC_SUBST([LIBRDATA_VERSION], [0.1.0-prerelease])
 
-LT_INIT([disable-static])
-
+dnl AC_PROG_CC must come before LT_INIT (which requires it). Calling it
+dnl afterwards makes newer Autoconf expand it twice, which produced a broken
+dnl configure script on Fedora 42 (see GitHub issue #51).
 AC_PROG_CC
-AC_PROG_CC_STDC
+dnl Autoconf >= 2.70 makes AC_PROG_CC select the newest C standard the
+dnl compiler supports; older versions need this obsolete macro to get C99.
+m4_version_prereq([2.70], [], [AC_PROG_CC_C99])
+
+LT_INIT([disable-static])
 
 AC_ARG_ENABLE([code-coverage], AS_HELP_STRING([--enable-code-coverage], [Enable code coverage profiling]), [code_coverage=yes], [code_coverage=no])
 AC_ARG_ENABLE([sanitizers], AS_HELP_STRING([--enable-sanitizers], [Enable address sanitizing]),
@@ -43,7 +48,8 @@ AM_CONDITIONAL([CODE_COVERAGE_ENABLED], test "x$code_coverage" = "xyes")
 AC_CHECK_LIB([Fuzzer], [__libfuzzer_is_present], [true], [false], [-lstdc++])
 AM_CONDITIONAL([HAVE_FUZZER], test "$ac_cv_lib_Fuzzer___libfuzzer_is_present" = yes)
 
-AC_OUTPUT([Makefile])
+AC_CONFIG_FILES([Makefile])
+AC_OUTPUT
 
 AC_MSG_RESULT([
 Configuration:

@@ -23,6 +23,21 @@ make install
 If you're on Mac and see errors about `AM_ICONV` when you run `./autogen.sh`,
 you'll need to install [gettext](https://www.gnu.org/software/gettext/).
 
+### Building on Windows
+
+Use [MSYS2](https://www.msys2.org/) with the MinGW-w64 toolchain (this is how
+the Windows CI build works). From a MINGW64 shell:
+
+```
+pacman -S autoconf automake libtool gettext mingw-w64-x86_64-toolchain
+./autogen.sh
+./configure
+make
+```
+
+The GnuWin32 autoconf packages are not sufficient, since they lack the Perl
+modules that `autoreconf` needs.
+
 ## Language bindings
 
 * Python: [pyreadr](https://github.com/ofajardo/pyreadr)
@@ -80,6 +95,26 @@ rdata_parse(parser, "/path/to/something.rdata", NULL);
 
 See [`rdata.h`](src/rdata.h) for the full API.
 
+### Text encoding
+
+All strings are delivered to the handlers as UTF-8. Strings that R has marked
+as UTF-8, ASCII, or Latin-1 are converted (or passed through) automatically.
+Strings in R's "native" encoding are converted from the encoding declared in
+the file, which only version 3 files (R >= 3.5) record. If the file declares
+the wrong encoding, or is an older file without a declaration, you can supply
+the encoding of native strings yourself:
+
+```c
+rdata_set_file_character_encoding(parser, "WINDOWS-1252");
+```
+
+Pass `"UTF-8"` to hand native strings through untouched.
+
+### Unsupported objects
+
+Objects that librdata doesn't understand (lists, S4 objects, functions,
+environments, and so on) are skipped. `.Random.seed` is skipped as well.
+
 ## Write API
 
 Example usage:
@@ -122,3 +157,46 @@ close(fd);
 ```
 
 See [`rdata.h`](src/rdata.h) for the full API.
+
+### Multiple tables
+
+Columns added after `rdata_end_table` belong to the next table. To write two
+data frames to one RData file, add the columns of the first table, write it,
+then add the columns of the second table and write that:
+
+```c
+rdata_column_t *col1 = rdata_add_column(writer, "column1", RDATA_TYPE_REAL);
+rdata_begin_table(writer, "first");
+/* ... write col1 ... */
+rdata_end_table(writer, row_count, "First data set");
+
+rdata_column_t *col2 = rdata_add_column(writer, "column2", RDATA_TYPE_STRING);
+rdata_begin_table(writer, "second");
+/* ... write col2 ... */
+rdata_end_table(writer, row_count, "Second data set");
+```
+
+Within a table, columns must be written in the order they were added.
+
+### Row names
+
+By default rows are named "1", "2", and so on. To use your own row names,
+call `rdata_append_row_name` once per row at any point before
+`rdata_end_table`:
+
+```c
+rdata_append_row_name(writer, "first row");
+rdata_append_row_name(writer, "second row");
+rdata_append_row_name(writer, "third row");
+rdata_end_table(writer, 3, "My data set");
+```
+
+### Compression
+
+The writer produces uncompressed output by default. To write a gzip-compressed
+file, as R's `save()` does, call this before `rdata_begin_file` (requires
+zlib):
+
+```c
+rdata_writer_set_compression(writer, RDATA_COMPRESSION_GZIP);
+```

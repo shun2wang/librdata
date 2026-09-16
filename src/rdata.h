@@ -34,7 +34,9 @@ typedef enum rdata_error_e {
     RDATA_ERROR_CONVERT_LONG_STRING,
     RDATA_ERROR_CONVERT_SHORT_STRING,
     RDATA_ERROR_UNSUPPORTED_S_EXPRESSION,
-    RDATA_ERROR_UNSUPPORTED_STORAGE_CLASS
+    RDATA_ERROR_UNSUPPORTED_STORAGE_CLASS,
+    RDATA_ERROR_COLUMN_MISMATCH,
+    RDATA_ERROR_ROW_NAME_COUNT
 } rdata_error_t;
 
 typedef enum rdata_file_format_e {
@@ -123,6 +125,7 @@ typedef struct rdata_parser_s {
     rdata_error_handler         error_handler;
     rdata_header_handler        header_handler;
     rdata_io_t                 *io;
+    char                       *file_character_encoding;
 } rdata_parser_t;
 
 rdata_parser_t *rdata_parser_init(void);
@@ -144,6 +147,14 @@ rdata_error_t rdata_set_seek_handler(rdata_parser_t *parser, rdata_seek_handler 
 rdata_error_t rdata_set_read_handler(rdata_parser_t *parser, rdata_read_handler read_handler);
 rdata_error_t rdata_set_update_handler(rdata_parser_t *parser, rdata_update_handler update_handler);
 rdata_error_t rdata_set_io_ctx(rdata_parser_t *parser, void *io_ctx);
+/* Strings are always delivered to the handlers as UTF-8. Strings that R has
+ * flagged as UTF-8, ASCII, or Latin-1 are handled automatically. Strings in
+ * the "native" encoding are converted from the encoding declared in the file
+ * (version 3 files only). Use this function to override the declared native
+ * encoding (e.g. "WINDOWS-1252" or "latin1"), or to supply one for version 2
+ * files, which don't declare it. Pass "UTF-8" to pass native strings through
+ * untouched, or NULL to restore the default behavior. */
+rdata_error_t rdata_set_file_character_encoding(rdata_parser_t *parser, const char *encoding);
 /* rdata_parse works on RData and RDS. The table handler will be called once
  * per data frame in RData files, and zero times on RDS files. */
 rdata_error_t rdata_parse(rdata_parser_t *parser, const char *filename, void *user_ctx);
@@ -176,11 +187,31 @@ typedef struct rdata_writer_s {
     rdata_column_t    **columns;
     int32_t             columns_count;
     int32_t             columns_capacity;
+
+    /* Columns belong to the table that is begun after they are added; these
+     * track which columns belong to the current table and how many of them
+     * have been written so far. */
+    int32_t             table_first_column;
+    int32_t             table_columns_written;
+
+    char              **row_names;
+    int32_t             row_names_count;
+    int32_t             row_names_capacity;
+
+    rdata_compression_t compression;
+    void               *compression_ctx;
 } rdata_writer_t;
 
 rdata_writer_t *rdata_writer_init(rdata_data_writer write_callback, rdata_file_format_t format);
 void rdata_writer_free(rdata_writer_t *writer);
 
+/* Must be called before rdata_begin_file. Gzip compression requires zlib. */
+rdata_error_t rdata_writer_set_compression(rdata_writer_t *writer, rdata_compression_t compression);
+
+/* Columns added after a call to rdata_end_table belong to the next table, so
+ * to write several tables to one workspace file: add the columns of the first
+ * table, begin/write/end it, add the columns of the second table, and so on.
+ * Within a table, columns must be written in the order they were added. */
 rdata_column_t *rdata_add_column(rdata_writer_t *writer, const char *name, rdata_type_t type);
 
 rdata_error_t rdata_column_set_label(rdata_column_t *column, const char *label);
@@ -200,6 +231,12 @@ rdata_error_t rdata_append_logical_value(rdata_writer_t *writer, int value);
 rdata_error_t rdata_append_string_value(rdata_writer_t *writer, const char *value);
 
 rdata_error_t rdata_end_column(rdata_writer_t *writer, rdata_column_t *column);
+
+/* Optional. Call once per row, at any point before rdata_end_table, to give
+ * the table's rows names other than the default "1", "2", ... The number of
+ * row names must equal the row count passed to rdata_end_table. */
+rdata_error_t rdata_append_row_name(rdata_writer_t *writer, const char *name);
+
 rdata_error_t rdata_end_table(rdata_writer_t *writer, int32_t row_count, const char *datalabel);
 rdata_error_t rdata_end_file(rdata_writer_t *writer);
 

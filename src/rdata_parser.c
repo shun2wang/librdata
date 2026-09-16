@@ -1,5 +1,6 @@
 
 #include <stdlib.h>
+#include <string.h>
 #include "rdata.h"
 #include "rdata_io_unistd.h"
 
@@ -14,8 +15,26 @@ void rdata_parser_free(rdata_parser_t *parser) {
     if (parser) {
         if (parser->io)
             free(parser->io);
+        if (parser->file_character_encoding)
+            free(parser->file_character_encoding);
         free(parser);
     }
+}
+
+rdata_error_t rdata_set_file_character_encoding(rdata_parser_t *parser, const char *encoding) {
+    if (parser->file_character_encoding)
+        free(parser->file_character_encoding);
+
+    parser->file_character_encoding = NULL;
+
+    if (encoding) {
+        parser->file_character_encoding = malloc(strlen(encoding) + 1);
+        if (parser->file_character_encoding == NULL)
+            return RDATA_ERROR_MALLOC;
+        strcpy(parser->file_character_encoding, encoding);
+    }
+
+    return RDATA_OK;
 }
 
 rdata_error_t rdata_set_table_handler(rdata_parser_t *parser, rdata_table_handler table_handler) {

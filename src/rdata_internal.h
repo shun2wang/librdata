@@ -74,3 +74,10 @@ typedef struct rdata_sexptype_info_s {
 
 /* we read this many characters from the beginning of the file to determine file format */
 #define RDATA_HEADER_LENGTH 5
+
+/* Encoding flags stored in the "gp" (LEVELS) bits of a CHARSXP header.
+ * See R's Defn.h and R-ints "Encodings for CHARSXPs". */
+#define RDATA_CHARSXP_BYTES   (1<<1)
+#define RDATA_CHARSXP_LATIN1  (1<<2)
+#define RDATA_CHARSXP_UTF8    (1<<3)
+#define RDATA_CHARSXP_ASCII   (1<<6)
